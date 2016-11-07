@@ -25,6 +25,7 @@ from subprocess import Popen, PIPE, STDOUT
 
 import yaml
 from progressbar import AnimatedMarker, ProgressBar
+from xdg import BaseDirectory
 
 import snapcraft
 from snapcraft import formatting_utils

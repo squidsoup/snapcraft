@@ -335,7 +335,9 @@ def push(snap_filename, release_channels=None):
     else:
         logger.info('Uploaded {!r}'.format(snap_name))
     tracker.raise_for_code()
-
+    if os.environ.get('DELTA_UPLOADS_EXPERIMENTAL'):
+        repo.cache_snap(snap_filename)
+        repo.purge_cache()
     if release_channels:
         release(snap_name, result['revision'], release_channels)
 
@@ -481,6 +483,14 @@ def history(snap_name, series, arch):
         headers=['Rev.', 'Uploaded', 'Arch', 'Version', 'Channels'],
         tablefmt='plain')
     print(tabulated_revisions)
+
+
+def latest_rev(snap_name, series=None, arch=None):
+    store = storeapi.StoreClient()
+
+    with _requires_login():
+        history = store.get_snap_history(snap_name, series, arch)
+    return history[-1]
 
 
 def gated(snap_name):

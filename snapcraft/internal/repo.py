@@ -39,7 +39,7 @@ from xdg import BaseDirectory
 import snapcraft
 from snapcraft import file_utils
 from snapcraft.internal import common
-
+from snapcraft._store import latest_rev
 
 _BIN_PATHS = (
     'bin',
@@ -62,6 +62,58 @@ deb http://${security}.ubuntu.com/${suffix} ${release}-security universe
 deb http://${security}.ubuntu.com/${suffix} ${release}-security multiverse
 '''
 _GEOIP_SERVER = "http://geoip.ubuntu.com/lookup"
+
+
+def _get_revision_from_snap_filename(snap_filename):
+    """Need to identify how to get the the snap file revision locally"""
+    # Here only parse the file name to get the version
+    # '{name}_{version}_{arch}.snap'
+    split_name_parts = snap_filename.split('_')
+    if len(split_name_parts) != 3:
+        raise ValueError('Snap file name is invalid.')
+    return str(split_name_parts[1])
+
+
+def purge_cache(project_options=None):
+    """Purge snap revisions other than head revision in XDG cache."""
+    if not project_options:
+            project_options = snapcraft.ProjectOptions()
+    config = snapcraft.internal.load_config(project_options)
+    name = config.data['name']
+    arch = config.data['architectures']
+
+    # get the latest history info from store
+    latest_history = latest_rev(snap_name=name, arch=arch)
+    keep_revison = latest_history['version']
+
+    cached_snaps_dir = os.path.join(
+        BaseDirectory.xdg_cache_home, 'snapcraft', 'revisions')
+
+    for snap_filename in os.listdir(cached_snaps_dir):
+        cached_snap = os.path.join(cached_snaps_dir, snap_filename)
+
+        # get the file version from file name
+        file_version = _get_revision_from_snap_filename(snap_filename)
+
+        if file_version != keep_revision:
+            try:
+                os.remove(cached_snap)
+            except OSError:
+                logger.warning(
+                    'Unable to purge snap {}.'.format(cached_snap))
+
+
+def cache_snap(snap_filename):
+    """Cache snap revision in XDG cache."""
+    cached_snap = os.path.join(
+        BaseDirectory.xdg_cache_home, 'snapcraft', 'revisions', snap_filename)
+    os.makedirs(os.path.dirname(cached_snap), exist_ok=True)
+    try:
+        shutil.copyfile(snap_filename, cached_snap)
+    except OSError:
+        logger.warning(
+            'Unable to cache snap {}.'.format(cached_snap))
+    return cached_snap
 
 
 def is_package_installed(package):
