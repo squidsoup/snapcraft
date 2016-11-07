@@ -336,6 +336,9 @@ def push(snap_filename, release_channels=None):
         logger.info('Uploaded {!r}'.format(snap_name))
     tracker.raise_for_code()
 
+    if os.environ.get('DELTA_UPLOADS_EXPERIMENTAL') and 'revision' in result:
+        repo.cache_snap(snap_filename, result['revision'])
+
     if release_channels:
         release(snap_name, result['revision'], release_channels)
 
