@@ -154,13 +154,3 @@ def _search_and_replace_contents(file_path, search_pattern, replacement):
             f.seek(0)
             f.truncate()
             f.write(replaced)
-
-
-def rewrite_snap_filename_with_revision(snap_file, revision):
-    splitf = os.path.splitext(snap_file)
-    snap_with_revision = '{base}_{rev}{ext}'.format(
-        base=splitf[0],
-        rev=revision,
-        ext=splitf[1]
-    )
-    return snap_with_revision

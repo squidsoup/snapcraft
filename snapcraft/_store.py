@@ -30,7 +30,10 @@ from tabulate import tabulate
 import yaml
 
 from snapcraft import storeapi
-from snapcraft.internal import repo
+from snapcraft.internal import (
+    cache,
+    repo,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -337,7 +340,8 @@ def push(snap_filename, release_channels=None):
     tracker.raise_for_code()
 
     if os.environ.get('DELTA_UPLOADS_EXPERIMENTAL') and 'revision' in result:
-        repo.cache_snap(snap_filename, result['revision'])
+        snap_cache = cache.SnapCache()
+        snap_cache.cache(snap_filename, result['revision'])
 
     if release_channels:
         release(snap_name, result['revision'], release_channels)

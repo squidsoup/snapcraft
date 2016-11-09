@@ -25,10 +25,10 @@ import fixtures
 from xdg import BaseDirectory
 
 from snapcraft import (
-    file_utils,
     storeapi,
     tests
 )
+from snapcraft.internal import cache
 from snapcraft.main import main
 from snapcraft.storeapi.errors import StoreUploadError
 from snapcraft.tests import fixture_setup
@@ -281,7 +281,7 @@ class PushCommandTestCase(tests.TestCase):
             'my-snap-name',
             'revisions'
         )
-        cached_snap = file_utils.rewrite_snap_filename_with_revision(
+        cached_snap = cache.rewrite_snap_filename_with_revision(
             snap_file,
             snap_revision
         )
@@ -321,7 +321,7 @@ class PushCommandTestCase(tests.TestCase):
             'my-snap-name',
             'revisions'
         )
-        cached_snap = file_utils.rewrite_snap_filename_with_revision(
+        cached_snap = cache.rewrite_snap_filename_with_revision(
             snap_file,
             snap_revision
         )
