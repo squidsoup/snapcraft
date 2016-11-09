@@ -279,12 +279,10 @@ class PushCommandTestCase(tests.TestCase):
             BaseDirectory.xdg_cache_home,
             'snapcraft',
             'my-snap-name',
-            'revisions'
-        )
+            'revisions')
         cached_snap = cache.rewrite_snap_filename_with_revision(
             snap_file,
-            snap_revision
-        )
+            snap_revision)
 
         self.assertTrue(os.path.isfile(
             os.path.join(revision_cache, cached_snap)))
@@ -319,12 +317,10 @@ class PushCommandTestCase(tests.TestCase):
             BaseDirectory.xdg_cache_home,
             'snapcraft',
             'my-snap-name',
-            'revisions'
-        )
+            'revisions')
         cached_snap = cache.rewrite_snap_filename_with_revision(
             snap_file,
-            snap_revision
-        )
+            snap_revision)
 
         self.assertFalse(
             os.path.isfile(os.path.join(revision_cache, cached_snap)))
