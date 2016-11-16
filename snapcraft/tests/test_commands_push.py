@@ -22,11 +22,13 @@ from unittest import mock
 
 import docopt
 import fixtures
+from xdg import BaseDirectory
 
 from snapcraft import (
     storeapi,
     tests
 )
+from snapcraft.internal.cache._snap import _rewrite_snap_filename_with_revision
 from snapcraft.main import main
 from snapcraft.storeapi.errors import StoreUploadError
 from snapcraft.tests import fixture_setup
@@ -272,16 +274,6 @@ class PushCommandDeltasTestCase(tests.TestCase):
         mock_upload = patcher.start()
         self.addCleanup(patcher.stop)
         mock_upload.return_value = mock_tracker
-
-        patcher = mock.patch.object(storeapi.StoreClient, 'get_snap_history')
-        mock_latest_rev = patcher.start()
-        self.addCleanup(patcher.stop)
-        mock_latest_rev.return_value = [{
-            'timestamp': 'now',
-            'arch': 'some_arch',
-            'version': '0.1',
-            'revision': snap_revision,
-        }]
 
         # Create a snap
         main(['init'])

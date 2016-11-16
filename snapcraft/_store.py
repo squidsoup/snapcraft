@@ -30,7 +30,10 @@ from tabulate import tabulate
 import yaml
 
 from snapcraft import storeapi
-from snapcraft.internal import repo
+from snapcraft.internal import (
+    cache,
+    repo,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -397,7 +400,11 @@ def push(snap_filename, release_channels=None):
     if os.environ.get('DELTA_UPLOADS_EXPERIMENTAL'):
         snap_cache = cache.SnapCache()
         snap_cache.cache(snap_filename, result['revision'])
+<<<<<<< HEAD
         snap_cache.prune(result['revision'])
+=======
+
+>>>>>>> master
     if release_channels:
         release(snap_name, result['revision'], release_channels)
 
@@ -503,7 +510,6 @@ def download(snap_name, channel, download_path, arch):
     """Download snap from the store to download_path"""
     store = storeapi.StoreClient()
     try:
-        with _requires_login():
             store.download(snap_name, channel, download_path, arch)
     except storeapi.errors.SHAMismatchError:
         raise RuntimeError(

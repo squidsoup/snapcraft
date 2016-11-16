@@ -41,12 +41,10 @@ class SnapCache(SnapcraftProjectCache):
 
         :returns: path to cached revision.
         """
-        snap_cache_dir = self._setup_snap_cache()
-
         cached_snap = _rewrite_snap_filename_with_revision(
             snap_filename,
             revision)
-        cached_snap_path = os.path.join(snap_cache_dir, cached_snap)
+        cached_snap_path = os.path.join(self.snap_cache_dir, cached_snap)
         try:
             shutil.copyfile(snap_filename, cached_snap_path)
         except OSError:
