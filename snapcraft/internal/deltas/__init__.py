@@ -15,4 +15,4 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from snapcraft.internal.deltas._xdelta_deltas import XdeltaGenerator # noqa
+from ._xdelta import XDeltaGenerator # noqa

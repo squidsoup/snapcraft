@@ -24,7 +24,7 @@ from snapcraft.internal.deltas import BaseDeltasGenerator
 logger = logging.getLogger(__name__)
 
 
-class XdeltaGenerator(BaseDeltasGenerator):
+class XDeltaGenerator(BaseDeltasGenerator):
 
     delta_format = 'xdelta'
     delta_tool_path = '/usr/bin/xdelta'
