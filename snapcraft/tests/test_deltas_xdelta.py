@@ -16,19 +16,35 @@
 
 import os
 import fixtures
+import logging
 import random
+import shutil
+from unittest import mock
 
+from progressbar import AnimatedMarker, ProgressBar
 from testtools import TestCase
 from testtools import matchers as m
 
-from snapcraft.internal.deltas import XdeltaGenerator
-from snapcraft.internal.deltas import _deltas
+from snapcraft import file_utils, tests
+from snapcraft.internal import deltas # noqa
+from snapcraft.tests import fixture_setup
 
 
-class XdeltaTestCase(TestCase):
+class XDeltaTestCase(TestCase):
 
     def setUp(self):
         super().setUp()
+        self.useFixture(fixture_setup.FakeTerminal())
+        self.fake_logger = fixtures.FakeLogger(level=logging.DEBUG)
+        self.useFixture(self.fake_logger)
+
+        # patch the ProgressBar to avoid mess up the test output
+        patcher = mock.patch(
+            'snapcraft.tests.test_deltas_xdelta.ProgressBar',
+            new=tests.SilentProgressBar)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
         self.workdir = self.useFixture(fixtures.TempDir()).path
         self.source_file = os.path.join(self.workdir, 'source.snap')
         self.target_file = os.path.join(self.workdir, 'target.snap')
@@ -65,31 +81,106 @@ class XdeltaTestCase(TestCase):
                 else:
                     target.write(block)
 
-    def test_raises_DeltaGenerationFailed_when_xdelta_not_installed(self):
-        self.patch(_deltas, 'executable_exists', lambda a: False)
-        self.patch(_deltas, 'which', lambda a: None)
+    def test_raises_DeltaToolError_when_xdelta_not_installed(self):
+        self.patch(file_utils, 'executable_exists', lambda a: False)
+        self.patch(shutil, 'which', lambda a: None)
 
         self.assertThat(
-            lambda: XdeltaGenerator(self.source_file, self.target_file),
-            m.raises(_deltas.DeltaGenerationFailed)
+            lambda: deltas.XDeltaGenerator(
+                source_path=self.source_file, target_path=self.target_file),
+            m.raises(deltas.errors.DeltaToolError)
         )
+        exception = self.assertRaises(deltas.errors.DeltaToolError,
+                                      deltas.XDeltaGenerator,
+                                      source_path=self.source_file,
+                                      target_path=self.target_file)
+        expected = 'delta_tool_path must be set in subclass!'
+        self.assertEqual(str(exception), expected)
 
     def test_xdelta(self):
         self.generate_snap_pair()
-        base_delta = XdeltaGenerator(self.source_file, self.target_file)
-        path = base_delta.make_delta()
+        base_delta = deltas.XDeltaGenerator(
+            source_path=self.source_file, target_path=self.target_file)
+        path = base_delta.make_delta(is_for_test=True)
 
         self.assertThat(path, m.FileExists())
+        expect_path = '{}.{}'.format(base_delta.target_path,
+                                     base_delta.delta_file_extname)
+        self.assertEqual(expect_path, path)
+
+    def test_xdelta_with_progress_indicator(self):
+        self.generate_snap_pair()
+        base_delta = deltas.XDeltaGenerator(
+            source_path=self.source_file, target_path=self.target_file)
+
+        message = 'creating delta file from {!r}...'.format(
+            self.source_file)
+        maxval = 10
+        progress_indicator = ProgressBar(
+            widgets=[message, AnimatedMarker()], maxval=maxval)
+        progress_indicator.start()
+
+        path = base_delta.make_delta(
+            progress_indicator=progress_indicator,
+            is_for_test=True)
+        progress_indicator.finish()
+
+        self.assertThat(path, m.FileExists())
+        expect_path = '{}.{}'.format(base_delta.target_path,
+                                     base_delta.delta_file_extname)
+        self.assertEqual(expect_path, path)
+
+    def test_xdelta_with_custom_output_dir(self):
+        self.generate_snap_pair()
+        base_delta = deltas.XDeltaGenerator(
+            source_path=self.source_file, target_path=self.target_file)
+        delta_filename = '{}.{}'.format(
+            os.path.split(base_delta.target_path)[1],
+            base_delta.delta_file_extname)
+
+        existed_output_dir = self.useFixture(fixtures.TempDir()).path
+        path = base_delta.make_delta(existed_output_dir, is_for_test=True)
+
+        expect_path = os.path.join(existed_output_dir, delta_filename)
+        self.assertThat(path, m.FileExists())
+        self.assertEqual(expect_path, path)
+
+        none_existed_output_dir = self.useFixture(
+            fixtures.TempDir()).path + '/whatever/'
+        path = base_delta.make_delta(none_existed_output_dir, is_for_test=True)
+
+        expect_path = os.path.join(none_existed_output_dir, delta_filename)
+        self.assertThat(path, m.FileExists())
+        self.assertEqual(expect_path, path)
 
     def test_xdelta_logs(self):
-        logger = self.useFixture(fixtures.FakeLogger())
-
         self.generate_snap_pair()
-        base_delta = XdeltaGenerator(self.source_file, self.target_file)
-        base_delta.make_delta()
-
+        base_delta = deltas.XDeltaGenerator(
+            source_path=self.source_file, target_path=self.target_file)
+        base_delta.make_delta(is_for_test=True)
 
         self.assertThat(
-            logger.output,
+            self.fake_logger.output,
             m.Contains('Generating xdelta delta for {}->{}.'.format(
                 base_delta.source_path, base_delta.target_path)))
+        self.assertThat(
+            self.fake_logger.output,
+            m.Contains('xdelta delta diff generation'))
+
+    @mock.patch('subprocess.Popen')
+    def test_xdelta_return_invalid_code(self, mock_subproc_popen):
+        # mock the subprocess.Popen with a unexpected returncode
+        process_mock = mock.Mock()
+        attrs = {
+            'returncode': -1,
+        }
+        process_mock.configure_mock(**attrs)
+        mock_subproc_popen.return_value = process_mock
+
+        self.generate_snap_pair()
+        base_delta = deltas.XDeltaGenerator(
+            source_path=self.source_file, target_path=self.target_file)
+        self.assertThat(
+            lambda: base_delta.make_delta(is_for_test=True),
+            m.raises(deltas.errors.DeltaGenerationError)
+        )

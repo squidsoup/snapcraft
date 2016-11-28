@@ -16,6 +16,7 @@
 
 
 import logging
+import shutil
 import subprocess
 
 from snapcraft.internal.deltas import BaseDeltasGenerator
@@ -26,23 +27,31 @@ logger = logging.getLogger(__name__)
 
 class XDeltaGenerator(BaseDeltasGenerator):
 
-    delta_format = 'xdelta'
-    delta_tool_path = '/usr/bin/xdelta'
+    def __init__(self, *, source_path, target_path):
+        delta_format = 'xdelta'
+        delta_tool_path = shutil.which(delta_format)
+        super().__init__(source_path=source_path,
+                         target_path=target_path,
+                         delta_file_extname='xdelta',
+                         delta_format=delta_format,
+                         delta_tool_path=delta_tool_path)
 
-    def call_delta_generation(self, delta_tool, source_path, target_path,
-                              delta_file, stdout_file, stderr_file, workdir):
-        process = subprocess.Popen(
-            [delta_tool, 'delta', source_path, target_path, delta_file],
-            stdout=stdout_file,
-            stderr=stderr_file,
-            cwd=workdir
-        )
-        return process
+    def get_delta_cmd(self, source_path, target_path, delta_file):
+        return [
+            self.delta_tool_path,
+            'delta',
+            source_path,
+            target_path,
+            delta_file
+        ]
+
+    def is_returncode_unexpected(self, proc):
+        # Success is exiting with 0 or 1. Yes, really. I know.
+        # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=212189
+        return proc.returncode not in (0, 1)
 
     def log_delta_file(self, delta_file):
-        logger.debug(
-            "xdelta delta diff generation:\n%s" %
-            subprocess.check_output(
-                [self.delta_tool_path, 'info', delta_file],
-                universal_newlines=True)
-            )
+        xdelta_output = subprocess.check_output(
+            [self.delta_tool_path, 'info', delta_file],
+            universal_newlines=True)
+        logger.debug('xdelta delta diff generation:\n{}'.format(xdelta_output))

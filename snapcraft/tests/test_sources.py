@@ -49,8 +49,14 @@ class FakeFileHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
 class TestTar(tests.TestCase):
 
+    scenarios = [
+        ('TERM=dumb', dict(term='dumb')),
+        ('TERM=vt100', dict(term='vt100')),
+    ]
+
     @unittest.mock.patch('snapcraft.sources.Tar.provision')
     def test_pull_tarball_must_download_to_sourcedir(self, mock_prov):
+        self.useFixture(fixtures.EnvironmentVariable('TERM', self.term))
         self.useFixture(fixtures.EnvironmentVariable(
             'no_proxy', 'localhost,127.0.0.1'))
         server = http.server.HTTPServer(
@@ -223,7 +229,7 @@ class SourceTestCase(tests.TestCase):
         self.addCleanup(patcher.stop)
 
         patcher = unittest.mock.patch(
-            'snapcraft.internal.sources._check_for_package')
+            'snapcraft.internal.sources._check_for_command')
         self.mock_check = patcher.start()
         self.mock_check.side_effect = None
         self.addCleanup(patcher.stop)
@@ -780,7 +786,7 @@ class TestUri(tests.TestCase):
         super().setUp()
 
         patcher = unittest.mock.patch(
-            'snapcraft.internal.sources._check_for_package')
+            'snapcraft.internal.sources._check_for_command')
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -853,11 +859,11 @@ class TestUri(tests.TestCase):
                 mock_pull.reset_mock()
 
 
-class PackageCheckTestCase(tests.TestCase):
+class CommandCheckTestCase(tests.TestCase):
 
-    def test__check_for_package_not_installed(self):
-        with self.assertRaises(errors.MissingPackageError):
-            sources._check_for_package('not-a-package')
+    def test__check_for_command_not_installed(self):
+        with self.assertRaises(errors.MissingCommandError):
+            sources._check_for_command('missing-command')
 
-    def test__check_for_package_installed(self):
-        sources._check_for_package('sh')
+    def test__check_for_command_installed(self):
+        sources._check_for_command('sh')
